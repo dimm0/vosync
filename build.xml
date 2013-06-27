@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<project default="create_run_jar" name="Create Runnable Jar for Project vosync_client with libraries in sub-folder">
+    <!--this file was created by Eclipse Runnable JAR Export Wizard-->
+    <!--ANT 1.7 is required                                        -->
+
+	<path id="dep.runtime">
+    	<fileset dir="./lib">
+        	<include name="**/*.jar" />
+    	</fileset>
+	</path>
+
+    <target name="create_run_jar">
+		<manifestclasspath property="jar.classpath" jarfile="vosync.jar">
+      		<classpath refid="dep.runtime"/>
+    	</manifestclasspath>
+        <jar destfile="vosync.jar">
+            <manifest>
+                <attribute name="Main-Class" value="edu.jhu.pha.vosync.VOSync"/>
+                <attribute name="Class-Path" value="${jar.classpath}"/>
+            </manifest>
+            <fileset dir="bin"/>
+        </jar>
+    </target>
+</project>
