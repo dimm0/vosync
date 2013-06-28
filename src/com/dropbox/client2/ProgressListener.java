@@ -68,6 +68,7 @@ public abstract class ProgressListener {
         public ProgressHttpEntity(final HttpEntity wrapped,
                 final ProgressListener listener) {
             super(wrapped);
+            if (listener == null) throw new IllegalArgumentException("'listener' is null");
             this.listener = listener;
             length = wrapped.getContentLength();
         }
@@ -110,6 +111,36 @@ public abstract class ProgressListener {
                     listener.onProgress(this.transferred, length);
                 }
             }
+        }
+    }
+
+    /**
+     * A progress listener that forwards on to another ProgressListener
+     * after adjusting the {@code total} and {@code bytes}.
+     */
+    public static final class Adjusted extends ProgressListener
+    {
+        private final ProgressListener relay;
+        private final long bytesOffset;
+        private final long adjustedTotal;
+
+        public Adjusted(ProgressListener relay, long bytesOffset, long adjustedTotal)
+        {
+            this.relay = relay;
+            this.bytesOffset = bytesOffset;
+            this.adjustedTotal = adjustedTotal;
+        }
+
+        @Override
+        public void onProgress(long bytes, long total)
+        {
+            relay.onProgress(bytesOffset+bytes, adjustedTotal);
+        }
+
+        @Override
+        public long progressInterval()
+        {
+            return relay.progressInterval();
         }
     }
 }

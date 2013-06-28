@@ -31,8 +31,6 @@ import java.util.Locale;
 import java.util.concurrent.TimeUnit;
 import java.util.zip.GZIPInputStream;
 
-//import net.oauth.OAuth;
-
 import org.apache.http.ConnectionReuseStrategy;
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -80,8 +78,7 @@ import com.dropbox.client2.DropboxAPI;
  */
 public abstract class AbstractSession implements Session {
 
-    //private static final String API_SERVER = "zinc27.pha.jhu.edu";
-    private static final String API_SERVER = "vospace.sdsc.edu:8080";
+    private static final String API_SERVER = "localhost";
     private static final String CONTENT_SERVER = API_SERVER;
     private static final String WEB_SERVER = API_SERVER;
 

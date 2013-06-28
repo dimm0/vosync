@@ -113,23 +113,57 @@ public final class JsonThing extends JsonBase<Object> {
             // - Make sure there's no overflow.
             return number.longValue();
         }
-        else if (internal instanceof String) {
-            String string = (String) internal;
-            try {
-                return Long.parseLong(string, 16);
-            }
-            catch (NumberFormatException ex) {
-                throw error("couldn't parse string as hex (expecting a 64-bit signed integer value)");
-            }
-        }
         else {
-            throw error("expecting an integer (or a hex string), found " + typeNameForObject(internal));
+            throw error("expecting an integer, found " + typeNameForObject(internal));
         }
     }
 
     public boolean isInt64() {
         try {
             expectInt64();
+            return true;
+        }
+        catch (JsonExtractionException ex) {
+            return false;
+        }
+    }
+
+    public int expectInt32() throws JsonExtractionException {
+        if (internal instanceof Number) {
+            Number number = (Number) internal;
+            // TODO: Be robust, since JSON actually defines "number" to mean "IEEE double"
+            // - Make sure there's no fractional part.
+            // - Make sure there's no overflow.
+            return number.intValue();
+        }
+        else {
+            throw error("expecting an integer, found " + typeNameForObject(internal));
+        }
+    }
+
+    public boolean isInt32() {
+        try {
+            expectInt32();
+            return true;
+        }
+        catch (JsonExtractionException ex) {
+            return false;
+        }
+    }
+
+    public double expectFloat64() throws JsonExtractionException {
+        if (internal instanceof Number) {
+            Number number = (Number) internal;
+            return number.doubleValue();
+        }
+        else {
+            throw error("expecting a floating point number, found " + typeNameForObject(internal));
+        }
+    }
+
+    public boolean isFloat64() {
+        try {
+            expectFloat64();
             return true;
         }
         catch (JsonExtractionException ex) {

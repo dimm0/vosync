@@ -41,7 +41,9 @@ import java.util.Scanner;
 import javax.net.ssl.SSLException;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpEntityEnclosingRequest;
 import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.HttpClient;
@@ -367,6 +369,8 @@ public class RESTUtility {
             HttpConnectionParams.setSoTimeout(reqParams, socketTimeoutOverrideMs);
         }
 
+        boolean repeatable = isRequestRepeatable(req);
+
         try {
             HttpResponse response = null;
             for (int retries = 0; response == null && retries < 5; retries++) {
@@ -380,6 +384,7 @@ public class RESTUtility {
                 try {
                     response = client.execute(req);
                 } catch (NullPointerException e) {
+                    // Leave 'response' as null.  This is handled below.
                 }
 
                 /*
@@ -390,12 +395,18 @@ public class RESTUtility {
                 if (response == null) {
                     updateClientProxy(client, session);
                 }
+
+                if (!repeatable) break;
             }
 
             if (response == null) {
                 // This is from that bug, and retrying hasn't fixed it.
                 throw new DropboxIOException("Apache HTTPClient encountered an error. No response, try again.");
-            } else if (response.getStatusLine().getStatusCode() != DropboxServerException._200_OK) {
+            }
+
+            int statusCode = response.getStatusLine().getStatusCode();
+            if (statusCode != DropboxServerException._200_OK
+                    && statusCode != DropboxServerException._206_PARTIAL_CONTENT) {
                 // This will throw the right thing: either a DropboxServerException or a DropboxProxyException
                 parseAsJSON(response);
             }
@@ -410,6 +421,19 @@ public class RESTUtility {
         } catch (OutOfMemoryError e) {
             throw new DropboxException(e);
         }
+    }
+
+    private static boolean isRequestRepeatable(HttpRequest req) {
+        // If the request contains an HttpEntity that can't be "reset" (like an InputStream),
+        // then it isn't repeatable.
+        if (req instanceof HttpEntityEnclosingRequest) {
+            HttpEntityEnclosingRequest ereq = (HttpEntityEnclosingRequest) req;
+            HttpEntity entity = ereq.getEntity();
+            if (entity != null && !entity.isRepeatable()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**

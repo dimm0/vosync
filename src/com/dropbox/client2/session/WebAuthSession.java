@@ -215,7 +215,7 @@ public class WebAuthSession extends AbstractSession {
 
     private Map<String, String> setUpToken(String path)
             throws DropboxException {
-        HttpResponse response = RESTUtility.streamRequest(RequestMethod.GET,
+        HttpResponse response = RESTUtility.streamRequest(RequestMethod.POST,
                 getAPIServer(), path,
                 DropboxAPI.VERSION,
                 new String[] {"locale", getLocale().toString()},

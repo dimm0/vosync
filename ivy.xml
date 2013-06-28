@@ -1,0 +1,22 @@
+<ivy-module version="2.0">
+    <info organisation="edu.jhu.pha" module="vosync"/>
+    <configurations>
+        <conf name="compile"/>
+    </configurations>
+    <dependencies>
+        <dependency org="commons-beanutils" name="commons-beanutils-core" rev="1.7.0" conf="compile->default"/>
+        <dependency org="commons-codec" name="commons-codec" rev="1.4" conf="compile->default"/>
+        <dependency org="commons-cli" name="commons-cli" rev="1.1" conf="compile->default"/>
+        <dependency org="commons-collections" name="commons-collections" rev="3.2" conf="compile->default"/>
+        <dependency org="commons-digester" name="commons-digester" rev="2.1" conf="compile->default"/>
+        <dependency org="commons-lang" name="commons-lang" rev="2.4" conf="compile->default"/>
+        <dependency org="commons-logging" name="commons-logging" rev="1.1.1" conf="compile->default"/>
+        <dependency org="org.apache.derby" name="derby" rev="10.10.1.1" conf="compile->default"/>
+        <dependency org="com.jgoodies" name="forms" rev="1.6.0" conf="compile->default"/>
+        <dependency org="org.apache.httpcomponents" name="httpclient" rev="4.2.4" conf="compile->default"/>
+        <dependency org="org.apache.httpcomponents" name="httpcore" rev="4.2.4" conf="compile->default"/>
+        <dependency org="org.apache.httpcomponents" name="httpmime" rev="4.2.4" conf="compile->default"/>
+        <dependency org="com.googlecode.json-simple" name="json-simple" rev="1.1.1" conf="compile->default"/>
+        <dependency org="log4j" name="log4j" rev="1.2.17" conf="compile->default"/>
+     </dependencies>
+</ivy-module>

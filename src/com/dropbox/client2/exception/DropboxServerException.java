@@ -45,30 +45,34 @@ public class DropboxServerException extends DropboxException {
         /** The error in the user's locale, if intended to be displayed to the user. */
         public String userError;
 
+        public Map<String, Object> fields;
         @SuppressWarnings("unchecked")
         public Error(Map<String, Object> map) {
-            if (map != null) {
-                Object err = map.get("error");
-                if (err instanceof String) {
-                    error = (String)err;
-                } else if (err instanceof Map<?, ?>) {
-                    Map<String, Object> detail = (Map<String, Object>)err;
-                    for (Object val: detail.values()) {
-                        if (val instanceof String) {
-                            error = (String)val;
-                        }
+            fields = map;
+            Object err = map.get("error");
+            if (err instanceof String) {
+                error = (String)err;
+            } else if (err instanceof Map<?, ?>) {
+                Map<String, Object> detail = (Map<String, Object>)err;
+                for (Object val: detail.values()) {
+                    if (val instanceof String) {
+                        error = (String)val;
                     }
                 }
-                Object uerr = map.get("user_error");
-                if (uerr instanceof String) {
-                    userError = (String)uerr;
-                }
             }
+            Object uerr = map.get("user_error");
+            if (uerr instanceof String) {
+                userError = (String)uerr;
+            }
+
         }
     }
 
     /** The request was successful. This won't ever be thrown in an exception. */
     public static final int _200_OK = 200;
+
+    /** The request was successful for a Range request. This won't ever be thrown in an exception. */
+    public static final int _206_PARTIAL_CONTENT = 206;
 
     /** Moved to a new location temporarily. */
     public static final int _302_FOUND = 302;

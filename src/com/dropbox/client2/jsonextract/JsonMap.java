@@ -51,7 +51,7 @@ public final class JsonMap extends JsonBase<Map<String,Object>> implements Itera
         return new JsonThing(internal.get(fieldName), pathConcatField(path, fieldName));
     }
 
-    public JsonThing getMaybe(String fieldName) {
+    public JsonThing getOrNull(String fieldName) {
         if (!internal.containsKey(fieldName)) {
             return null;
         }

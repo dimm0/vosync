@@ -20,7 +20,7 @@ import com.dropbox.client2.exception.DropboxException;
 import com.dropbox.client2.session.WebAuthSession.WebAuthInfo;
 import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.ColumnSpec;
-import com.jgoodies.forms.factories.FormFactory;
+import com.jgoodies.forms.layout.FormSpecs;
 import com.jgoodies.forms.layout.RowSpec;
 
 public class SyncFolderChooser extends JDialog {
@@ -77,11 +77,11 @@ public class SyncFolderChooser extends JDialog {
 					contentPanel.add(panel_1, BorderLayout.SOUTH);
 					panel_1.setLayout(new FormLayout(new ColumnSpec[] {
 							ColumnSpec.decode("left:min"),
-							FormFactory.LABEL_COMPONENT_GAP_COLSPEC,
+							FormSpecs.LABEL_COMPONENT_GAP_COLSPEC,
 							ColumnSpec.decode("pref:grow"),},
 						new RowSpec[] {
 							RowSpec.decode("28px"),
-							FormFactory.RELATED_GAP_ROWSPEC,
+							FormSpecs.RELATED_GAP_ROWSPEC,
 							RowSpec.decode("28px"),}));
 					{
 						JLabel oauthTokenLabel = new JLabel(" OAuth token: ");
