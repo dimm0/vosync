@@ -43,12 +43,18 @@ public class DbPool {
 	private static final Logger logger = Logger.getLogger(DbPool.class);
     //private static String framework = "embedded";
     //private static String driver = "org.apache.derby.jdbc.EmbeddedDriver";
-    private static String protocol = "jdbc:derby:";
+//    private static String protocol = "jdbc:derby:";
+    private static String protocol = "jdbc:sqlite:";
     //private static String protocol = "jdbc:derby://localhost:1527/";
 
     static {
+    	try {
+			Class.forName("org.sqlite.JDBC");
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		}
     	DbPool.goSql("Create files if needed",
-        		"create table FILES(name varchar(256), rev int, mtime bigint, hash char(24), PRIMARY KEY (name))",
+        		"create table if not exists FILES(name varchar(256), rev int, mtime bigint, hash char(24), PRIMARY KEY (name))",
                 new SqlWorker<Boolean>() {
                     @Override
                     public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
@@ -76,12 +82,13 @@ public class DbPool {
     public static <T> T goSql(String context, String sql, SqlWorker<T> goer) {
         Properties props = new Properties(); // connection properties
     	//logger.debug("Doing SQL: "+context + " "+sql);
-    	String dbName = "vosyncDB"; // the name of the database
+    	String dbName = "vosync.db"; // the name of the database
         Connection conn = null;
         PreparedStatement stmt = null;
 
         try {
-            conn = DriverManager.getConnection(protocol + dbName + ";create=true", props);
+//            conn = DriverManager.getConnection(protocol + dbName + ";create=true", props);
+            conn = DriverManager.getConnection(protocol + dbName, props);
             if (sql != null)
                 stmt = conn.prepareStatement(sql);
             return goer.go(conn, stmt);
