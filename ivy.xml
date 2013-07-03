@@ -18,5 +18,6 @@
         <dependency org="com.googlecode.json-simple" name="json-simple" rev="1.1.1" conf="compile->default"/>
         <dependency org="log4j" name="log4j" rev="1.2.17" conf="compile->default"/>
         <dependency org="org.xerial" name="sqlite-jdbc" rev="3.7.2" conf="compile->default"/>
+        <dependency org="org.xlightweb" name="xlightweb" rev="2.13.2" conf="compile->default"/>
      </dependencies>
 </ivy-module>

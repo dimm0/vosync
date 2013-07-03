@@ -5,6 +5,8 @@ import java.awt.TrayIcon;
 import java.awt.TrayIcon.MessageType;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -56,6 +58,8 @@ public class VOSync {
 	 * Sync directory watcher thread instance
 	 */
 	private DirWatcher2 watcherThread;
+
+
 	
 	/**
 	 * Application is initialized
@@ -115,9 +119,8 @@ public class VOSync {
 		if (SystemTray.isSupported()) {
 			trayIcon = IconHandler.addIcon();
 		}
-		
+		TaskManager.getInstance();
 		initSession(false);
-
 	}
 
 	/**
@@ -140,16 +143,17 @@ public class VOSync {
 				chooser.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
 	            chooser.setVisible(true);
 	        } else {
-	    		//WebAuthSession session = new WebAuthSession(new AppKeyPair("vosync","vosync_ssecret"), Session.AccessType.APP_FOLDER, new AccessTokenPair("ffa47e6b0d3ee12644676354062394fa","40a5eea36eb2464926d37e052afc8354"));
 	    		api = new DropboxAPI<WebAuthSession>(session);
 
 				api.accountInfo();
 
 	        	String syncDir = prefs.get("syncdir", null);
+	        	NodePath.startDir = syncDir;
 				Path syncPath = Paths.get(syncDir);
 				getInstance().runWatcher(syncPath);
 			}
-			
+			EventListener list = new EventListener();
+			list.init();
 			init = true;
 		} catch(DropboxIOException ex) {
 			this.error("Error connecting to the server.");
@@ -159,6 +163,10 @@ public class VOSync {
 		
 	}
 	
+	public DirWatcher2 getWatcher() {
+		return watcherThread;
+	}
+
 	public DropboxAPI<WebAuthSession> getApi() {
 		return api;
 	}

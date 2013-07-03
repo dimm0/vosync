@@ -17,14 +17,14 @@ public class MetaHandler {
 	
 	private static final Logger logger = Logger.getLogger(MetaHandler.class);
 	
-	public static boolean delete(final String filePath) {
+	public static boolean delete(final NodePath filePath) {
     	return DbPool.goSql("Delete record",
         		"delete from FILES where name like ? or name = ?",
                 new SqlWorker<Boolean>() {
                     @Override
                     public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
-                    	stmt.setString(1, filePath.toString()+"/%");
-                    	stmt.setString(2, filePath.toString());
+                    	stmt.setString(1, filePath.getNodeStoragePath()+"/%");
+                    	stmt.setString(2, filePath.getNodeStoragePath());
                     	return stmt.executeUpdate() > 0;
                     }
                 }
@@ -73,13 +73,13 @@ public class MetaHandler {
 	 * @param file
 	 * @return
 	 */
-	public static boolean isModified(final String filePath, final File file) {
+	public static boolean isModified(final NodePath filePath, final File file) {
     	return DbPool.goSql("Check if file is modified",
         		"select mtime from FILES where name = ?",
                 new SqlWorker<Boolean>() {
                     @Override
                     public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
-                    	stmt.setString(1, filePath);
+                    	stmt.setString(1, filePath.getNodeStoragePath());
                     	ResultSet resSet = stmt.executeQuery();
                     	if(resSet.next()){
                     		return resSet.getLong(1) != file.lastModified();
@@ -91,13 +91,13 @@ public class MetaHandler {
         );
 	}
 
-	public static boolean isStored(final String filePath) {
+	public static boolean isStored(final NodePath path) {
     	return DbPool.goSql("Check if stored",
         		"select count(*) from FILES where name = ?",
                 new SqlWorker<Boolean>() {
                     @Override
                     public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
-                    	stmt.setString(1, filePath);
+                    	stmt.setString(1, path.getNodeStoragePath());
                     	ResultSet resSet = stmt.executeQuery();
                     	if(resSet.next()){
                     		return resSet.getInt(1) > 0;
@@ -137,16 +137,16 @@ public class MetaHandler {
         );
 	}
 
-	public static void setFile(final String filePath, final File file, final String rev) {
-		logger.debug("Seting file "+filePath+" at rev "+rev);
-		if(!isStored(filePath)) {
-			logger.debug("Adding File "+filePath+" to DB");
+	public static void setFile(final NodePath path, final File file, final String rev) {
+		logger.debug("Seting file "+path.getNodeStoragePath()+" at rev "+rev);
+		if(!isStored(path)) {
+			logger.debug("Adding File "+path.getNodeStoragePath()+" to DB");
 	    	DbPool.goSql("Set file",
 	        		"insert into FILES(name, rev, mtime) values (?, ?, ?)",
 	                new SqlWorker<Boolean>() {
 	                    @Override
 	                    public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
-	                    	stmt.setString(1, filePath);
+	                    	stmt.setString(1, path.getNodeStoragePath());
 	                    	stmt.setString(2, rev);
 	                    	stmt.setLong(3, file.lastModified());
 	                    	return stmt.executeUpdate() > 0;
@@ -154,7 +154,7 @@ public class MetaHandler {
 	                }
 	        );
 		} else {
-			logger.debug("Updating File "+filePath+" in DB");
+			logger.debug("Updating File "+path.getNodeStoragePath()+" in DB");
 	    	DbPool.goSql("Update file",
 	        		"update FILES set rev = ?, mtime = ? where name = ?",
 	                new SqlWorker<Boolean>() {
@@ -162,7 +162,7 @@ public class MetaHandler {
 	                    public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
 	                    	stmt.setString(1, rev);
 	                    	stmt.setLong(2, file.lastModified());
-	                    	stmt.setString(3, filePath);
+	                    	stmt.setString(3, path.getNodeStoragePath());
 	                    	return stmt.executeUpdate() > 0;
 	                    }
 	                }

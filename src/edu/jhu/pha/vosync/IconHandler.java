@@ -12,8 +12,10 @@ import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.net.URL;
 
+import javax.swing.DefaultListModel;
 import javax.swing.ImageIcon;
 import javax.swing.JDialog;
+import javax.swing.JFrame;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 
@@ -50,6 +52,20 @@ public class IconHandler {
         
         popup.add(syncFolderChooserItem);
         popup.addSeparator();
+
+        MenuItem jobsItem = new MenuItem("Jobs...");
+        jobsItem.addActionListener(new ActionListener() {
+            @Override
+			public void actionPerformed(ActionEvent e) {
+                JobsBrowser browser = new JobsBrowser(TaskManager.listModel);
+    			browser.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+                browser.setVisible(true);
+            }
+        });
+        
+        popup.add(jobsItem);
+
+        
         popup.add(exitItem);
 
         trayIcon.setPopupMenu(popup);
