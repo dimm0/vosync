@@ -49,13 +49,13 @@ public class MetaHandler {
         );
 	}
 
-	public static String getRev(final String filePath) {
+	public static String getRev(final NodePath path) {
     	return DbPool.goSql("Get file revision",
         		"select rev from FILES where name = ?",
                 new SqlWorker<String>() {
                     @Override
                     public String go(Connection conn, PreparedStatement stmt) throws SQLException {
-                    	stmt.setString(1, filePath);
+                    	stmt.setString(1, path.getNodeStoragePath());
                     	ResultSet resSet = stmt.executeQuery();
                     	if(resSet.next()){
                     		return resSet.getString(1);
@@ -73,7 +73,7 @@ public class MetaHandler {
 	 * @param file
 	 * @return
 	 */
-	public static boolean isModified(final NodePath filePath, final File file) {
+	public static boolean isModified(final NodePath filePath) {
     	return DbPool.goSql("Check if file is modified",
         		"select mtime from FILES where name = ?",
                 new SqlWorker<Boolean>() {
@@ -82,7 +82,7 @@ public class MetaHandler {
                     	stmt.setString(1, filePath.getNodeStoragePath());
                     	ResultSet resSet = stmt.executeQuery();
                     	if(resSet.next()){
-                    		return resSet.getLong(1) != file.lastModified();
+                    		return resSet.getLong(1) != filePath.toFile().lastModified();
                     	} else {// not found
                     		return true;
                     	}
@@ -119,13 +119,13 @@ public class MetaHandler {
 	 * @param file
 	 * @return
 	 */
-	public static boolean isCurrent(final String filePath, final String rev) {
+	public static boolean isCurrent(final NodePath path, final String rev) {
     	return DbPool.goSql("Check if remote file is modified",
         		"select rev from FILES where name = ?",
                 new SqlWorker<Boolean>() {
                     @Override
                     public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
-                    	stmt.setString(1, filePath);
+                    	stmt.setString(1, path.getNodeStoragePath());
                     	ResultSet resSet = stmt.executeQuery();
                     	if(resSet.next()){
                     		return resSet.getString(1).equals(rev);

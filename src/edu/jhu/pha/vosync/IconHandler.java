@@ -57,7 +57,7 @@ public class IconHandler {
         jobsItem.addActionListener(new ActionListener() {
             @Override
 			public void actionPerformed(ActionEvent e) {
-                JobsBrowser browser = new JobsBrowser(TaskManager.listModel);
+                JobsBrowser browser = new JobsBrowser(TaskController.listModel);
     			browser.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
                 browser.setVisible(true);
             }

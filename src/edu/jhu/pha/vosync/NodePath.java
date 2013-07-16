@@ -38,7 +38,7 @@ public class NodePath {
 
 	private static FileSystem fileSystem = FileSystems.getDefault();
 	
-	public static String startDir = "";
+	public static Path startDir = null;
 	
 	public NodePath (String path) {
 		if(null == path)
@@ -48,6 +48,10 @@ public class NodePath {
 
 	private NodePath(String[] pathElms) {
 		this.pathTokens = pathElms;
+	}
+
+	public NodePath (Path path) {
+		this("/"+((startDir)).relativize(path).toString().replaceAll("\\\\", "/"));
 	}
 
 	public NodePath append(NodePath newPath) {

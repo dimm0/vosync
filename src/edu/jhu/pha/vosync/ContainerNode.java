@@ -36,10 +36,10 @@ public class ContainerNode {
 				boolean isStoredLocally = MetaHandler.isStored(curPath);
 				if(!isStoredLocally && !ent.isDeleted){
 					TransferJob job = new TransferJob(Direction.pullContent, curPath);
-					TaskManager.addJob(job);
+					TaskController.addJob(job);
 				} else if (isStoredLocally) { // remove local file - deleted remotely
 					TransferJob job = new TransferJob(Direction.pullDelete, curPath);
-					TaskManager.addJob(job);
+					TaskController.addJob(job);
 				}
 			}
 		}

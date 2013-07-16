@@ -3,6 +3,7 @@ package edu.jhu.pha.vosync;
 import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.TrayIcon.MessageType;
+import java.io.File;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.ExecutorService;
@@ -55,11 +56,24 @@ public class VOSync {
 	private static WebAuthSession session;
 
 	/**
+	 * Init the session. Can clear the access token for preferences to get the new token.
+	 * @param clearAccessToken Clear the current Access Token
+	 */
+	static void initSession(boolean clearAccessToken) {
+		AccessTokenPair tokenPair = null;
+		
+		if(!clearAccessToken && (null != prefs.get("oauthToken", null) && null != prefs.get("oauthSecret", null)))
+			tokenPair = new AccessTokenPair(prefs.get("oauthToken", null), prefs.get("oauthSecret", null));
+		
+		session = new WebAuthSession(new AppKeyPair("vosync","vosync_ssecret"), Session.AccessType.APP_FOLDER, tokenPair);
+	}
+
+
+	
+	/**
 	 * Sync directory watcher thread instance
 	 */
 	private DirWatcher2 watcherThread;
-
-
 	
 	/**
 	 * Application is initialized
@@ -110,81 +124,17 @@ public class VOSync {
 		return prefs;
 	}
 	
+	public static String getServiceUrl() {
+		return serviceUrl;
+	}
+
+	public static WebAuthSession getSession() {
+		return session;
+	}
+
 	public static void main(String[] s) throws BackingStoreException {
 		VOSync cloud = getInstance();
 		cloud.init();
-	}
-	
-	private VOSync() {
-		if (SystemTray.isSupported()) {
-			trayIcon = IconHandler.addIcon();
-		}
-		TaskManager.getInstance();
-		initSession(false);
-	}
-
-	/**
-	 * Init the session. Can clear the access token for preferences to get the new token.
-	 * @param clearAccessToken Clear the current Access Token
-	 */
-	static void initSession(boolean clearAccessToken) {
-		AccessTokenPair tokenPair = null;
-		
-		if(!clearAccessToken && (null != prefs.get("oauthToken", null) && null != prefs.get("oauthSecret", null)))
-			tokenPair = new AccessTokenPair(prefs.get("oauthToken", null), prefs.get("oauthSecret", null));
-		
-		session = new WebAuthSession(new AppKeyPair("vosync","vosync_ssecret"), Session.AccessType.APP_FOLDER, tokenPair);
-	}
-
-	protected void init() {
-		try {
-			if(null == prefs.get("syncdir", null) || null == prefs.get("oauthToken", null) || null == prefs.get("oauthSecret", null)) {
-	            SyncFolderChooser chooser = new SyncFolderChooser();
-				chooser.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
-	            chooser.setVisible(true);
-	        } else {
-	    		api = new DropboxAPI<WebAuthSession>(session);
-
-				api.accountInfo();
-
-	        	String syncDir = prefs.get("syncdir", null);
-	        	NodePath.startDir = syncDir;
-				Path syncPath = Paths.get(syncDir);
-				getInstance().runWatcher(syncPath);
-			}
-			EventListener list = new EventListener();
-			list.init();
-			init = true;
-		} catch(DropboxIOException ex) {
-			this.error("Error connecting to the server.");
-		} catch(DropboxException ex) {
-			this.error("Error: "+ex.getMessage());
-		}
-		
-	}
-	
-	public DirWatcher2 getWatcher() {
-		return watcherThread;
-	}
-
-	public DropboxAPI<WebAuthSession> getApi() {
-		return api;
-	}
-
-	public void runWatcher(Path syncPath) {
-		try {
-			if(null != watcherThread) {
-				synchronized(watcherThread) {
-					watcherThread.interrupt();
-				}
-				watcherThread.join(10000);
-			}
-			watcherThread = new DirWatcher2(syncPath, api);
-			watcherThread.setDaemon(true);
-			watcherThread.start();
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 	}
 	
 	static void setCredentials(String oauthToken, String oauthSecret) {
@@ -206,12 +156,72 @@ public class VOSync {
 		}
 	}
 
-	public static String getServiceUrl() {
-		return serviceUrl;
+	private VOSync() {
+		if (SystemTray.isSupported()) {
+			trayIcon = IconHandler.addIcon();
+		}
+		TaskController.getInstance();
+		initSession(false);
+	}
+	
+	public DropboxAPI<WebAuthSession> getApi() {
+		return api;
 	}
 
-	public static WebAuthSession getSession() {
-		return session;
+	public DirWatcher2 getWatcher() {
+		return watcherThread;
+	}
+
+	protected void init() {
+		try {
+			if(null == prefs.get("syncdir", null) || null == prefs.get("oauthToken", null) || null == prefs.get("oauthSecret", null)) {
+	            SyncFolderChooser chooser = new SyncFolderChooser();
+				chooser.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+	            chooser.setVisible(true);
+	        } else {
+	    		api = new DropboxAPI<WebAuthSession>(session);
+
+				api.accountInfo();
+
+	        	String syncDir = prefs.get("syncdir", null);
+	        	NodePath.startDir = (new File(syncDir)).toPath(); // set static NodePath parameter to use for paths conversion
+				Path syncPath = Paths.get(syncDir);
+
+				getInstance().runWatcher(syncPath);
+
+				NodesSynchronizer.initSync();
+				NodesSynchronizer.printNodes();
+			}
+			EventListener list = new EventListener();
+			list.init();
+			
+			TaskController.getInstance().run();
+			
+			init = true;
+		} catch(DropboxIOException ex) {
+			this.error("Error connecting to the server.");
+		} catch(DropboxException ex) {
+			this.error("Error: "+ex.getMessage());
+		}
+		
+	}
+
+	public void runWatcher(Path syncPath) {
+		try {
+			logger.debug("Running watcher");
+			if(null != watcherThread) {
+				synchronized(watcherThread) {
+					watcherThread.interrupt();
+				}
+				watcherThread.join(10000);
+			}
+			logger.debug("Running watcher: after instance check");
+			watcherThread = new DirWatcher2(syncPath, api);
+			watcherThread.setDaemon(true);
+			watcherThread.start();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 	
 }

@@ -52,138 +52,17 @@ public class DirWatcher2 extends Thread {
 		this.startDir = dir;
 		this.api = api;
 	}
-//
-//	public void downloadFile(NodePath filePath) {
-//		VOSync.debug("Downloading file from storage: "+filePath.toString());
-//		try {
-//			WatchKey key = filePath.getNodeFilesystemPath().getParent().register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-//			keys.remove(key);
-//			key.cancel();
-//
-//			FileOutputStream outp = new FileOutputStream(filePath.toFile());
-//			DropboxFileInfo info = api.getFile(filePath.getNodeStoragePath(), null, outp, null);
-//			outp.close();
-//			
-//			key = filePath.getNodeFilesystemPath().getParent().register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-//			keys.put(key, filePath.getNodeFilesystemPath().getParent());
-//			
-//			MetaHandler.setFile(filePath, filePath.toFile(), info.getMetadata().rev);
-//		} catch(IOException ex) {
-//			logger.error("Error downloading file "+filePath+": "+ex.getMessage());
-//		} catch(DropboxException ex) {
-//			ex.printStackTrace();
-//			logger.error("Error downloading file "+filePath+": "+ex.getMessage());
-//		}
-//	}
 
-	/**
-	 * Register the given directory, and all its sub-directories, with the
-	 * WatchService.f
-	 */
-	private void registerAll(final Path start) throws IOException {
-		Files.walkFileTree(start, new SimpleFileVisitor<Path>() {
-			@Override
-			public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
-				logger.debug("postVisitDir "+dir.toString());
-				WatchKey key = dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-				logger.debug("Adding key: "+key.toString()+" "+dir);
-				keys.put(key, dir);
-    			return FileVisitResult.CONTINUE;
-    		}
-			
-    		@Override
-			public FileVisitResult preVisitDirectory(Path fullDir, BasicFileAttributes attrs) throws IOException {
-				logger.debug("preVisitDirectory "+fullDir.toString());
-				String dir = "/"+fixPath(startDir.relativize(fullDir).toString());
-				NodePath path = new NodePath(dir);
-				if(!MetaHandler.isStored(path) || MetaHandler.isModified(path, fullDir.toFile())){
-					try {
-						Entry folderEntry = null;
-						try {
-							logger.debug("Creating folder: "+dir);
-							folderEntry = api.createFolder(dir);
-						} catch(DropboxServerException ex) {
-							if(ex.error == DropboxServerException._403_FORBIDDEN) {
-								folderEntry = api.metadata(dir, 0, null, false, null);
-							} else {
-								logger.error(ex.getMessage());
-							}
-						}
-						
-						MetaHandler.setFile(path, fullDir.toFile(), folderEntry.rev);
-					} catch(DropboxException ex) {
-						ex.printStackTrace();
-					}
-				}
-				
-				return FileVisitResult.CONTINUE;
-			}
-
-    		@Override
-    		public FileVisitResult visitFile(Path fullPath, BasicFileAttributes attrs) throws IOException {
-				logger.debug("visitFile "+fullPath.toString());
-				NodePath path = new NodePath(fixPath(startDir.relativize(fullPath).toString()));
-    			if(!MetaHandler.isStored(path) || MetaHandler.isModified(path, fullPath.toFile())){
-    				logger.debug("Not stored or updated: "+path);
-    				try {
-    					TransferJob job = new TransferJob(Direction.pushContent, path);
-    					TaskManager.addJob(job);
-    				} catch(Exception ex) {
-    					ex.printStackTrace();
-    				}
-    			}
-    			return FileVisitResult.CONTINUE;
-    		}
-		});
-	}
-	
 	@Override
 	public void run() {
 		logger.debug("Register root "+startDir.toString());
 		
-		try {
-			registerAll(startDir);
-		} catch(IOException ex) {
-			logger.error(ex.getMessage());
-			return;
-		}
+		registerAll(startDir);
 
 		if(isInterrupted())
 			return;
 		
-		VOSync.debug("Sync local db with drive");
-
-	    DbPool.goSql("Synching the local db with drive",
-        		"select NAME from FILES",
-                new SqlWorker<Boolean>() {
-                    @Override
-                    public Boolean go(Connection conn, PreparedStatement stmt) throws SQLException {
-                    	ResultSet resSet = stmt.executeQuery();
-                    	while(resSet.next()){
-                    		try {
-	                    		String fileName = resSet.getString(1);
-	                    		NodePath path = new NodePath(fileName);
-	            				if(!path.toFile().exists()) {
-	            					logger.debug("Deleting file "+fileName+" existing in DB and not present on disk");
-	    							api.delete(fileName);
-	    							MetaHandler.delete(path);
-	            				}
-                    		} catch(DropboxException ex) {}
-                    	}
-                    	resSet.close();
-                    	return true;
-                    }
-                }
-        );
-
-		if(isInterrupted())
-			return;
-		
-		VOSync.debug("Sync storage");
-
-	    syncStorage();
-
-		TaskManager.getInstance().printQueue();
+		TaskController.getInstance().printQueue();
 	    
 	    logger.debug("Start watching");
 	    
@@ -215,50 +94,67 @@ public class DirWatcher2 extends Thread {
 				Path child = dir.resolve(name);
 				Path relativeDir = startDir.relativize(child);
 				NodePath filePath = new NodePath(fixPath(relativeDir.toString()));
+//				NodePath filePath = new NodePath(name);
 	
 				// print out event
 				logger.debug(event.kind().name()+":"+child+" "+name+" "+key);
 				
-//				try {
-//					if(Files.exists(child, new LinkOption[]{}) && Files.isHidden(child)){
-//						logger.error("Skipping hidden file "+child.getFileName()); // skip OS generated catalog files
-//					} else {
-//						if(event.kind() == ENTRY_CREATE) {
-//							if (Files.isRegularFile(child, NOFOLLOW_LINKS)) { // file modified
-//								uploadFile(fileRelPath, child);
-//							} else if (Files.isDirectory(child, NOFOLLOW_LINKS)) { // directory contents changed
-//								registerAll(child);
-//							}
-//						} else if(event.kind() == ENTRY_DELETE) {
-//							logger.debug("Deleting "+fileRelPath);
-//							api.delete(fileRelPath);
-//							MetaHandler.delete(fileRelPath);
-//							logger.debug("Deleted!");
-//						} else if(event.kind() == ENTRY_MODIFY) {
-//							if (Files.isRegularFile(child, NOFOLLOW_LINKS)) { // file modified
-//								uploadFile(fileRelPath, child);
-//							} else if (Files.isDirectory(child, NOFOLLOW_LINKS)) { // directory contents changed
-//								//logger.debug("Renewing dir: "+relativeDir.toString());
-//								// TODO update folder date
-//								//MetaHandler.setFile(fileRelPath, child, rev);
-//							}
-//						}
-//
-//					}
-//				} catch(IOException ex) {
-//					ex.printStackTrace();
-//					logger.error(ex.getMessage());
-//				} catch(DropboxException ex) {
-//					ex.printStackTrace();
-//					logger.error(ex.getMessage());
-//				}
-				
+				try {
+					if(Files.exists(child, new LinkOption[]{}) && Files.isHidden(child)){
+						logger.error("Skipping hidden file "+child.getFileName()); // skip OS generated catalog files
+					} else {
+						if(event.kind() == ENTRY_CREATE) {
+							if (Files.isRegularFile(child, NOFOLLOW_LINKS)) { // file modified
+								TransferJob job = new TransferJob(Direction.pushContent, filePath);
+								TaskController.addJob(job);
+							} else if (Files.isDirectory(child, NOFOLLOW_LINKS)) { // directory contents changed
+								registerAll(child);
+							}
+						} else if(event.kind() == ENTRY_DELETE) {
+							logger.debug("Deleting "+filePath);
+							TransferJob job = new TransferJob(Direction.pushDelete, filePath);
+							TaskController.addJob(job);
+							logger.debug("Deleted!");
+						} else if(event.kind() == ENTRY_MODIFY) {
+							if (Files.isRegularFile(child, NOFOLLOW_LINKS)) { // file modified
+								TransferJob job = new TransferJob(Direction.pushContent, filePath);
+								TaskController.addJob(job);
+							} else if (Files.isDirectory(child, NOFOLLOW_LINKS)) { // directory contents changed
+								//logger.debug("Renewing dir: "+relativeDir.toString());
+								// TODO update folder date
+								//MetaHandler.setFile(fileRelPath, child, rev);
+							}
+						}
+
+					}
+				} catch(IOException ex) {
+					ex.printStackTrace();
+					logger.error(ex.getMessage());
+				}
 			}
 			
 			boolean valid = key.reset();
 			
 			if(!valid)
 				keys.remove(key);
+		}
+	}
+
+	private void registerAll(Path startDir) {
+		try {
+			Files.walkFileTree(startDir, new SimpleFileVisitor<Path>() {
+				@Override
+				public FileVisitResult postVisitDirectory(Path dir, IOException exc) throws IOException {
+					logger.debug("postVisitDir "+dir.toString());
+					WatchKey key = dir.register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
+					logger.debug("Adding key: "+key.toString()+" "+dir);
+					keys.put(key, dir);
+	    			return FileVisitResult.CONTINUE;
+	    		}
+			});
+		} catch(IOException ex) {
+			logger.error(ex.getMessage());
+			return;
 		}
 	}
 
@@ -275,7 +171,7 @@ public class DirWatcher2 extends Thread {
 		try {
 			logger.debug("Synching storage.");
 			final String rootDir = "/";
-			Entry folderEntry = api.metadata(rootDir, 0, MetaHandler.getHash(rootDir), true, MetaHandler.getRev(rootDir));
+			Entry folderEntry = api.metadata(rootDir, 0, MetaHandler.getHash(rootDir), true, MetaHandler.getRev(new NodePath(rootDir)));
 
 			//TODO handle removed entries
 			
@@ -303,12 +199,12 @@ public class DirWatcher2 extends Thread {
 					NodePath path = new NodePath(entry.path);
 					if(!MetaHandler.isStored(path)) {
 						TransferJob job = new TransferJob(Direction.pullContent, path);
-						TaskManager.addJob(job);
-					} else if(!MetaHandler.isCurrent(entry.path, entry.rev)) {
+						TaskController.addJob(job);
+					} else if(!MetaHandler.isCurrent(new NodePath(entry.path), entry.rev)) {
 						try {
 							logger.debug("Uploading file "+entry.path);
 							TransferJob job = new TransferJob(Direction.pushContent, path);
-							TaskManager.addJob(job);
+							TaskController.addJob(job);
 						} catch (Exception e) {
 							logger.error("Error uploading file: "+e.getMessage());
 						}
@@ -322,37 +218,6 @@ public class DirWatcher2 extends Thread {
 			logger.error("Error syching root dir: "+ex.getMessage());
 		}
 	}
-	
-//	private void uploadFile(String relPath, Path fullPath) throws DropboxException, IOException {
-//		if(!fullPath.toFile().exists())
-//			return;
-//		
-//		/*if(api.metadata(relPath, 1, null, false, null).rev == MetaHandler.getRev(relPath)){
-//			logger.debug("File "+relPath+" not changed");
-//			return;
-//		}*/
-//		
-//		VOSync.debug("Uploading "+relPath);
-//		
-//		String rev = MetaHandler.getRev(relPath);
-//		
-//		try (InputStream inp = new FileInputStream(fullPath.toFile())) {
-//			Entry fileEntry = api.putFile(relPath, inp, fullPath.toFile().length(), rev, null);
-//			Path destFilePath = FileSystems.getDefault().getPath(fullPath.toFile().getParentFile().getPath(), fileEntry.fileName());
-//
-//			MetaHandler.setFile(relPath, destFilePath.toFile(), fileEntry.rev);
-//
-//			logger.debug(relPath+" put to db");
-//			
-//			//if the file was renamed, move the file on disk and download the current from server
-//			if(!fileEntry.fileName().equals(fullPath.toFile().getName())){
-//				logger.error(fileEntry.fileName()+" != "+fullPath.toFile().getName());
-//				fullPath.toFile().renameTo(destFilePath.toFile());
-//			}
-//		}
-//
-//
-//	}
 	
 	public Map<WatchKey, Path> getKeys() {
 		return keys;
@@ -377,7 +242,7 @@ public class DirWatcher2 extends Thread {
 						}
 
 						try {
-							Entry childWithContents = api.metadata(child.path, 0, MetaHandler.getHash(child.path), true, MetaHandler.getRev(child.path));
+							Entry childWithContents = api.metadata(child.path, 0, MetaHandler.getHash(child.path), true, MetaHandler.getRev(new NodePath(child.path)));
 							visitEntry(childWithContents, visitor);
 						} catch (DropboxException e) {
 							logger.error(e.getMessage());
