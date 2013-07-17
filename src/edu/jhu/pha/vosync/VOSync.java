@@ -91,8 +91,9 @@ public class VOSync {
 	public static void debug(String debug) {
 		if(null != trayIcon) {
 			trayIcon.displayMessage("", debug, MessageType.INFO);
-		} else
-			logger.debug(debug);
+		}
+		
+		logger.debug(debug);
 	}
 	
 	/**
@@ -102,8 +103,8 @@ public class VOSync {
 	public static void error(String error) {
 		if(null != trayIcon)
 			trayIcon.displayMessage("Error", error, MessageType.ERROR);
-		else
-			logger.error(error);
+
+		logger.error(error);
 	}
 	
 	/**

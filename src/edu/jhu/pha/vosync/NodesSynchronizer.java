@@ -123,7 +123,7 @@ public class NodesSynchronizer {
 			
 			if(!localModified && !remoteModified) { // files are intact
 			} else if(localModified && remoteModified) { // conflict
-				File renameToFile = new File(path.toFile().getPath()+path.toFile().getName()+"_conflicted_copy_"+path.toFile().lastModified());
+				File renameToFile = new File(path.toFile().getPath()+"_conflicted_copy_"+path.toFile().lastModified());
 				path.toFile().renameTo(renameToFile);
 				TransferJob job = new TransferJob(Direction.pullContent, path);
 				TaskController.addJob(job);

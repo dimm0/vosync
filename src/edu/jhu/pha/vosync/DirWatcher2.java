@@ -94,7 +94,6 @@ public class DirWatcher2 extends Thread {
 				Path child = dir.resolve(name);
 				Path relativeDir = startDir.relativize(child);
 				NodePath filePath = new NodePath(fixPath(relativeDir.toString()));
-//				NodePath filePath = new NodePath(name);
 	
 				// print out event
 				logger.debug(event.kind().name()+":"+child+" "+name+" "+key);
@@ -167,58 +166,6 @@ public class DirWatcher2 extends Thread {
 		return path.replaceAll("\\\\", "/");
 	}
 	
-	private void syncStorage() {
-		try {
-			logger.debug("Synching storage.");
-			final String rootDir = "/";
-			Entry folderEntry = api.metadata(rootDir, 0, MetaHandler.getHash(rootDir), true, MetaHandler.getRev(new NodePath(rootDir)));
-
-			//TODO handle removed entries
-			
-			visitEntry(folderEntry, new DropboxEntryVisitor() {
-				@Override
-				public void preVisitDirectory(Entry entry) throws IOException {
-					NodePath path = new NodePath(entry.path);
-					if(!MetaHandler.isStored(path)) {
-						logger.debug("Creating local dir: "+entry.path);
-						WatchKey key = path.getNodeFilesystemPath().getParent().register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-						keys.remove(key);
-						key.cancel();
-
-						path.toFile().mkdir();
-						
-						key = path.getNodeFilesystemPath().getParent().register(watcher, ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-						keys.put(key, path.getNodeFilesystemPath().getParent());
-						
-						MetaHandler.setFile(path, path.toFile(), entry.rev);
-					}
-				}
-
-				@Override
-				public void visitFile(Entry entry) {
-					NodePath path = new NodePath(entry.path);
-					if(!MetaHandler.isStored(path)) {
-						TransferJob job = new TransferJob(Direction.pullContent, path);
-						TaskController.addJob(job);
-					} else if(!MetaHandler.isCurrent(new NodePath(entry.path), entry.rev)) {
-						try {
-							logger.debug("Uploading file "+entry.path);
-							TransferJob job = new TransferJob(Direction.pushContent, path);
-							TaskController.addJob(job);
-						} catch (Exception e) {
-							logger.error("Error uploading file: "+e.getMessage());
-						}
-					}
-				}
-			});
-			
-			
-			
-		} catch(DropboxException ex) {
-			logger.error("Error syching root dir: "+ex.getMessage());
-		}
-	}
-	
 	public Map<WatchKey, Path> getKeys() {
 		return keys;
 	}
@@ -226,32 +173,4 @@ public class DirWatcher2 extends Thread {
 	public WatchService getWatcher() {
 		return watcher;
 	}
-
-	private void visitEntry(final Entry entry, DropboxEntryVisitor visitor) {
-		if(null != entry.contents) {
-			logger.debug(entry.path+"contents size: "+entry.contents.size());
-			for(Entry child: entry.contents) {
-				if(!child.isDeleted){
-					if(!child.isDir){
-						visitor.visitFile(child);
-					} else {
-						try {
-							visitor.preVisitDirectory(child);
-						} catch(IOException e) {
-							logger.error(e.getMessage());
-						}
-
-						try {
-							Entry childWithContents = api.metadata(child.path, 0, MetaHandler.getHash(child.path), true, MetaHandler.getRev(new NodePath(child.path)));
-							visitEntry(childWithContents, visitor);
-						} catch (DropboxException e) {
-							logger.error(e.getMessage());
-						}
-						visitor.postVisitDirectory(child);
-					}
-				}
-			}
-		}
-	}
-
 }

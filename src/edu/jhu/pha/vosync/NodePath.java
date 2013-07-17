@@ -65,6 +65,17 @@ public class NodePath {
 	}
 	
 	/**
+	 * Return the path to the node considering the appContainer parameter
+	 * @return
+	 */
+	public String getNodeOuterPath() {
+		if(pathTokens.length == 0)
+			return "";
+
+		return SEPARATOR+StringUtils.join(pathTokens, SEPARATOR,1,pathTokens.length);
+	}
+	
+	/**
 	 * Returns the node full path
 	 * @return
 	 */

@@ -1,22 +1,11 @@
 package edu.jhu.pha.vosync;
 
-import static java.nio.file.StandardWatchEventKinds.ENTRY_CREATE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_DELETE;
-import static java.nio.file.StandardWatchEventKinds.ENTRY_MODIFY;
-
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Path;
-import java.nio.file.WatchKey;
-import java.util.LinkedHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import javax.swing.DefaultListModel;
-import javax.swing.ListModel;
 
 import org.apache.log4j.Logger;
 
@@ -24,7 +13,7 @@ import com.dropbox.client2.DropboxAPI.DropboxFileInfo;
 import com.dropbox.client2.DropboxAPI.Entry;
 import com.dropbox.client2.exception.DropboxException;
 
-import edu.jhu.pha.vosync.TransferJob.Direction;
+import edu.jhu.pha.vosync.TransferJob.JobStatus;
 
 public class TaskController extends Thread {
 
@@ -35,22 +24,10 @@ public class TaskController extends Thread {
 	 */
 	private static final ExecutorService transfersExecutor = Executors.newSingleThreadExecutor();
 
-	private static final LinkedHashMap<NodePath, TransferJob> transfersMap = new LinkedHashMap<NodePath, TransferJob>();
-	
 	private static TaskController self = null;
 	
-	public static DefaultListModel listModel = new DefaultListModel();
+	public static JobsListModel listModel = new JobsListModel();
 	
-	public static void addJob(TransferJob job) {
-		synchronized(transfersMap) {
-			transfersMap.put(job.getPath(), job);
-			listModel.addElement(job.getDirection()+"\t"+job.getPath());
-		}
-		synchronized(self){
-			self.notify();
-		}
-	}
-
 	public static TaskController getInstance() {
 		if(null == self){
 			self = new TaskController();
@@ -61,24 +38,25 @@ public class TaskController extends Thread {
 	
 	private TaskController() {}
 	
+	public static void addJob(TransferJob job) {
+		listModel.addJob(job);
+	}
+	
 	@Override
 	public void run() {
 		while(true) {
-			while(transfersMap.isEmpty())
-				synchronized(self) {
+			while(listModel.isEmpty())
+				synchronized(listModel) {
 					try {
-						self.wait();
+						listModel.wait();
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 				}
 			
-			final NodePath curJobPath;
-			final TransferJob job;
-			synchronized(transfersMap) {
-				curJobPath = transfersMap.keySet().iterator().next();
-				job = transfersMap.remove(curJobPath);
-			}
+			final TransferJob job = listModel.popJob();
+			final NodePath curJobPath = job.getPath();
+			listModel.refresh();
 			transfersExecutor.execute(new Runnable() {
 				@Override
 				public void run() {
@@ -151,13 +129,14 @@ public class TaskController extends Thread {
 						}
 						break;
 					}
+					
 				}
 			});
 		}
 	}
 
 	public void printQueue() {
-		for(TransferJob job: this.transfersMap.values()) {
+		for(TransferJob job: listModel.values()) {
 			logger.debug("Job: "+job.getDirection()+" "+job.getPath());
 		}
 	}
