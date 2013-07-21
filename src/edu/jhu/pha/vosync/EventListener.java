@@ -1,7 +1,10 @@
 package edu.jhu.pha.vosync;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.Logger;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -49,25 +52,28 @@ public class EventListener {
 			Event event = webEventDataSource.readMessage();
 			VOSync.debug("Event "+event.getData());
 			JSONObject obj= (JSONObject)JSONValue.parse(event.getData());
-			NodePath containerChanged = new NodePath((String)obj.get("container"));
-
+//			NodePath containerChanged = new NodePath((String)obj.get("container"));
 			try {
-				Entry dirEntry = VOSync.getInstance().getApi().metadata(containerChanged.getNodeOuterPath(), 0, null, true, null);
-				for(Entry ent: dirEntry.contents) {
-					NodePath curPath = new NodePath(ent.path);
-					if(!ent.isDir){
-						boolean isStoredLocally = MetaHandler.isStored(curPath);
-						if(!isStoredLocally && !ent.isDeleted){
-							TransferJob job = new TransferJob(Direction.pullContent, curPath);
+				String pathStr = URLDecoder.decode(StringUtils.substringAfter((String)obj.get("uri"), "!vospace"), "UTF-8");
+				NodePath serviceNodeChangedPath = new NodePath(pathStr);
+				NodePath nodeChangedPath = new NodePath(serviceNodeChangedPath.getNodeOuterPath());
+				Entry ent = VOSync.getInstance().getApi().metadata(nodeChangedPath.getNodeStoragePath(), 0, null, true, null);
+				if(!ent.isDir){
+					boolean isStoredLocally = MetaHandler.isStored(nodeChangedPath);
+					logger.debug("Is stored locally: "+isStoredLocally+" "+nodeChangedPath.getNodeStoragePath());
+					if(!isStoredLocally && !ent.isDeleted){
+						TransferJob job = new TransferJob(Direction.pullContent, nodeChangedPath);
+						TaskController.addJob(job);
+					} else if (isStoredLocally) { 
+						if(ent.isDeleted) { // remove local file - deleted remotely
+							logger.debug("Creating delete job for: "+nodeChangedPath+" "+ent.rev);
+							TransferJob job = new TransferJob(Direction.pullDelete, nodeChangedPath);
 							TaskController.addJob(job);
-						} else if (isStoredLocally) { 
-							if(ent.isDeleted) { // remove local file - deleted remotely
-								TransferJob job = new TransferJob(Direction.pullDelete, curPath);
-								TaskController.addJob(job);
-							} else if(!MetaHandler.isCurrent(curPath, ent.rev)) {
-								TransferJob job = new TransferJob(Direction.pullContent, curPath);
-								TaskController.addJob(job);
-							}
+						} else if(!MetaHandler.isCurrent(nodeChangedPath, ent.rev)) {
+							logger.debug("Not current: "+nodeChangedPath+" "+ent.rev);
+							VOSync.debug("Creating new file pulled from event: "+nodeChangedPath.getNodeName());
+							TransferJob job = new TransferJob(Direction.pullContent, nodeChangedPath);
+							TaskController.addJob(job);
 						}
 					}
 				}

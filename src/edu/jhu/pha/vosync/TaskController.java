@@ -1,9 +1,15 @@
 package edu.jhu.pha.vosync;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileSystem;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.WatchKey;
+import java.nio.file.attribute.FileAttribute;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -39,6 +45,7 @@ public class TaskController extends Thread {
 	private TaskController() {}
 	
 	public static void addJob(TransferJob job) {
+		VOSync.debug("Added job: "+job.getDirection()+" "+job.getPath().getNodeStoragePath());
 		listModel.addJob(job);
 	}
 	
@@ -63,19 +70,18 @@ public class TaskController extends Thread {
 					switch (job.getDirection()) {
 					case pullContent:
 						try {
-//							DirWatcher2 watcher = VOSync.getInstance().getWatcher();
-//							WatchKey key = curJobPath.getNodeFilesystemPath().getParent().register(watcher.getWatcher(), ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-//							watcher.getKeys().remove(key);
-//							key.cancel();
-	
-							FileOutputStream outp = new FileOutputStream(curJobPath.toFile());
+							File tempFile = File.createTempFile("."+curJobPath.getNodeName(), null, curJobPath.toFile().getParentFile());
+							
+							FileOutputStream outp = new FileOutputStream(tempFile);
 							DropboxFileInfo info = VOSync.getInstance().getApi().getFile(curJobPath.getNodeStoragePath(), null, outp, null);
 							outp.close();
-//							
-//							Path nodePath = curJobPath.getNodeFilesystemPath().getParent();
-//							key = nodePath.register(watcher.getWatcher(), ENTRY_CREATE, ENTRY_DELETE, ENTRY_MODIFY);
-//							watcher.getKeys().put(key, nodePath);
-//							MetaHandler.setFile(curJobPath, curJobPath.toFile(), info.getMetadata().rev);
+							
+							DirWatcher2.setIgnoreNode(job.getPath().toFile().getAbsoluteFile().toPath(), true);
+
+							tempFile.renameTo(job.getPath().toFile());
+							MetaHandler.setFile(curJobPath, curJobPath.toFile(), info.getMetadata().rev);
+
+							DirWatcher2.setIgnoreNode(job.getPath().toFile().getAbsoluteFile().toPath(), true);
 						} catch(IOException ex) {
 							logger.error("Error downloading file "+curJobPath.getNodeStoragePath()+": "+ex.getMessage());
 						} catch(DropboxException ex) {
@@ -95,9 +101,14 @@ public class TaskController extends Thread {
 						
 						VOSync.debug("Uploading "+path);
 						
-						String rev = MetaHandler.getRev(path);
+						String rev = MetaHandler.getRev(path); // 0 if creating new file
 						
 						try (InputStream inp = new FileInputStream(path.toFile())) {
+							if(!MetaHandler.isStored(path)) { // to prevent downloading new created file
+								MetaHandler.setFile(path, path.toFile(), "0");
+								logger.debug("!!!!!!!!! "+MetaHandler.isStored(path)+" "+path.getNodeStoragePath());
+							}
+								
 							Entry fileEntry = VOSync.getInstance().getApi().putFile(path.getNodeStoragePath(), inp, path.toFile().length(), rev, null);
 				
 							MetaHandler.setFile(path, path.toFile(), fileEntry.rev);

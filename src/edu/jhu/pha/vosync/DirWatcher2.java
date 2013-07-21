@@ -6,24 +6,18 @@ import java.nio.file.WatchEvent.Kind;
 import static java.nio.file.StandardWatchEventKinds.*;
 import static java.nio.file.LinkOption.*;
 
-import java.nio.file.attribute.*;
 import java.io.*;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
 import com.dropbox.client2.DropboxAPI;
-import com.dropbox.client2.DropboxAPI.DropboxFileInfo;
-import com.dropbox.client2.DropboxAPI.Entry;
-import com.dropbox.client2.exception.DropboxException;
-import com.dropbox.client2.exception.DropboxServerException;
 import com.dropbox.client2.session.WebAuthSession;
 
-import edu.jhu.pha.vosync.DbPool.SqlWorker;
 import edu.jhu.pha.vosync.TransferJob.Direction;
 
 public class DirWatcher2 extends Thread {
@@ -42,6 +36,11 @@ public class DirWatcher2 extends Thread {
 
 	private Path startDir;
 
+	private static HashSet<Path> ignoreNodes = new HashSet<Path>();
+	
+	private static final ScheduledExecutorService postponeWorker = 
+			  Executors.newSingleThreadScheduledExecutor();
+	
 	/**
 	 * Creates a WatchService and registers the given directory
 	 * @throws IOException 
@@ -91,9 +90,18 @@ public class DirWatcher2 extends Thread {
 				// Context for directory entry event is the file name of entry
 				WatchEvent<Path> ev = cast(event);
 				Path name = ev.context();
+				
 				Path child = dir.resolve(name);
 				Path relativeDir = startDir.relativize(child);
 				NodePath filePath = new NodePath(fixPath(relativeDir.toString()));
+
+				if(this.ignoreNodes.contains(filePath.toFile().toPath())){
+					logger.debug("Ignoring path "+filePath.toFile().toPath());
+					continue;
+				} else {
+					logger.debug("Not ignoring path "+filePath.toFile().toPath());
+				}
+				
 	
 				// print out event
 				logger.debug(event.kind().name()+":"+child+" "+name+" "+key);
@@ -172,5 +180,20 @@ public class DirWatcher2 extends Thread {
 
 	public WatchService getWatcher() {
 		return watcher;
+	}
+	
+	public static void setIgnoreNode(final Path node, boolean ignore) {
+		logger.debug("Modifying ignore: "+node+" "+ignore);
+		if(ignore)
+			ignoreNodes.add(node);
+		else {
+			postponeWorker.schedule(new Runnable() {
+				@Override
+				public void run() {
+					ignoreNodes.remove(node);
+				}
+			}, 5, TimeUnit.SECONDS);
+			
+		}
 	}
 }
