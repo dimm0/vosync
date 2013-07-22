@@ -104,9 +104,14 @@ public class NodesSynchronizer {
 	
 	public static void sync(NodePath path, Entry entry) {
 		
-		if(entry == null){
-			TransferJob job = new TransferJob(Direction.pushContent, path);
-			TaskController.addJob(job);
+		if(entry == null) { // not stored remotely
+			if(MetaHandler.isStored(path)) { // present in local metadata - was removed remotely
+				TransferJob job = new TransferJob(Direction.pullDelete, path);
+				TaskController.addJob(job);
+			} else { // Only present on drive: was added while offline
+				TransferJob job = new TransferJob(Direction.pushContent, path);
+				TaskController.addJob(job);
+			}
 			return;
 		}
 		
