@@ -10,8 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.WatchKey;
 import java.nio.file.attribute.FileAttribute;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.log4j.Logger;
 
@@ -34,6 +37,8 @@ public class TaskController extends Thread {
 	
 	public static JobsListModel listModel = new JobsListModel();
 	
+	private static TransferJob curJob = null;
+	
 	public static TaskController getInstance() {
 		if(null == self){
 			self = new TaskController();
@@ -52,7 +57,7 @@ public class TaskController extends Thread {
 	@Override
 	public void run() {
 		while(true) {
-			while(listModel.isEmpty())
+			while(listModel.isEmpty() && null == curJob)
 				synchronized(listModel) {
 					try {
 						listModel.wait();
@@ -61,13 +66,20 @@ public class TaskController extends Thread {
 					}
 				}
 			
-			final TransferJob job = listModel.popJob();
-			final NodePath curJobPath = job.getPath();
-			listModel.refresh();
-			transfersExecutor.execute(new Runnable() {
+			if(null == curJob) {
+				synchronized(listModel) {
+					curJob = listModel.popJob();
+					listModel.refresh();
+				}
+			} else {
+				VOSync.error("Job "+curJob.getPath().toString()+" "+curJob.getDirection()+" was not finished; retrying in 5 sec");
+				try {sleep(5000);} catch(InterruptedException ex) {}
+			}
+			final NodePath curJobPath = curJob.getPath();
+			Future<Boolean> fut = transfersExecutor.submit(new Callable<Boolean>() {
 				@Override
-				public void run() {
-					switch (job.getDirection()) {
+				public Boolean call() {
+					switch (curJob.getDirection()) {
 					case pullContent:
 						try {
 							File tempFile = File.createTempFile("."+curJobPath.getNodeName(), null, curJobPath.toFile().getParentFile());
@@ -76,44 +88,42 @@ public class TaskController extends Thread {
 							DropboxFileInfo info = VOSync.getInstance().getApi().getFile(curJobPath.getNodeStoragePath(), null, outp, null);
 							outp.close();
 							
-							DirWatcher2.setIgnoreNode(job.getPath().toFile().getAbsoluteFile().toPath(), true);
+							DirWatcher2.setIgnoreNode(curJobPath.toFile().getAbsoluteFile().toPath(), true);
 
-							tempFile.renameTo(job.getPath().toFile());
+							tempFile.renameTo(curJobPath.toFile());
 							MetaHandler.setFile(curJobPath, curJobPath.toFile(), info.getMetadata().rev);
 
-							DirWatcher2.setIgnoreNode(job.getPath().toFile().getAbsoluteFile().toPath(), true);
-						} catch(IOException ex) {
-							logger.error("Error downloading file "+curJobPath.getNodeStoragePath()+": "+ex.getMessage());
-						} catch(DropboxException ex) {
+							DirWatcher2.setIgnoreNode(curJobPath.toFile().getAbsoluteFile().toPath(), true);
+						} catch(IOException | DropboxException ex) {
 							ex.printStackTrace();
 							logger.error("Error downloading file "+curJobPath.getNodeStoragePath()+": "+ex.getMessage());
+							return false;
 						}
 						break;
 					case pushContent:
-						NodePath path = job.getPath();
-						if(!path.toFile().exists())
-							return;
+						if(!curJobPath.toFile().exists())
+							return true;
 					
 						/*if(api.metadata(relPath, 1, null, false, null).rev == MetaHandler.getRev(relPath)){
 							logger.debug("File "+relPath+" not changed");
 							return;
 						}*/
 						
-						VOSync.debug("Uploading "+path);
+						VOSync.debug("Uploading "+curJobPath);
 						
-						String rev = MetaHandler.getRev(path); // 0 if creating new file
+						String rev = MetaHandler.getRev(curJobPath); // 0 if creating new file
 						
-						try (InputStream inp = new FileInputStream(path.toFile())) {
-							if(!MetaHandler.isStored(path)) { // to prevent downloading new created file
-								MetaHandler.setFile(path, path.toFile(), "0");
-								logger.debug("!!!!!!!!! "+MetaHandler.isStored(path)+" "+path.getNodeStoragePath());
+						try (InputStream inp = new FileInputStream(curJobPath.toFile())) {
+							if(!MetaHandler.isStored(curJobPath)) { // to prevent downloading new created file
+								MetaHandler.setFile(curJobPath, curJobPath.toFile(), "0");
+								logger.debug("!!!!!!!!! "+MetaHandler.isStored(curJobPath)+" "+curJobPath.getNodeStoragePath());
 							}
 								
-							Entry fileEntry = VOSync.getInstance().getApi().putFile(path.getNodeStoragePath(), inp, path.toFile().length(), rev, null);
+							Entry fileEntry = VOSync.getInstance().getApi().putFile(curJobPath.getNodeStoragePath(), inp, curJobPath.toFile().length(), rev, null);
 				
-							MetaHandler.setFile(path, path.toFile(), fileEntry.rev);
+							MetaHandler.setFile(curJobPath, curJobPath.toFile(), fileEntry.rev);
 				
-							logger.debug(path+" put to db");
+							logger.debug(curJobPath+" put to db");
 							
 	//						//if the file was renamed, move the file on disk and download the current from server
 	//						if(!fileEntry.fileName().equals(path.toFile().getName())){
@@ -123,6 +133,7 @@ public class TaskController extends Thread {
 						} catch (IOException | DropboxException e) {
 							e.printStackTrace();
 							VOSync.error(e.getMessage());
+							return false;
 						}
 	
 						break;
@@ -131,18 +142,27 @@ public class TaskController extends Thread {
 						curJobPath.toFile().delete();
 						break;
 					case pushDelete:
-						MetaHandler.delete(job.getPath());
+						MetaHandler.delete(curJobPath);
 						try {
-							VOSync.getInstance().getApi().delete(job.getPath().getNodeStoragePath());
+							VOSync.getInstance().getApi().delete(curJobPath.getNodeStoragePath());
 						} catch (DropboxException e) {
 							e.printStackTrace();
 							VOSync.error(e.getMessage());
+							return false;
 						}
 						break;
 					}
-					
+					return true;
 				}
 			});
+			try {
+				boolean success = fut.get();
+				if(success)
+					curJob = null; // else retry - link is down
+			} catch (InterruptedException | ExecutionException e) {
+				VOSync.error("Error executing task: "+e.getMessage());
+				e.printStackTrace();
+			}
 		}
 	}
 
