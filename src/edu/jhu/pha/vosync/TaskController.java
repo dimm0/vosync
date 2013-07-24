@@ -21,6 +21,8 @@ import org.apache.log4j.Logger;
 import com.dropbox.client2.DropboxAPI.DropboxFileInfo;
 import com.dropbox.client2.DropboxAPI.Entry;
 import com.dropbox.client2.exception.DropboxException;
+import com.dropbox.client2.exception.DropboxIOException;
+import com.dropbox.client2.exception.DropboxServerException;
 
 import edu.jhu.pha.vosync.TransferJob.JobStatus;
 
@@ -60,7 +62,9 @@ public class TaskController extends Thread {
 			while(listModel.isEmpty() && null == curJob)
 				synchronized(listModel) {
 					try {
+						logger.debug("     wait");
 						listModel.wait();
+						logger.debug("     wait finished");
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -93,11 +97,19 @@ public class TaskController extends Thread {
 							tempFile.renameTo(curJobPath.toFile());
 							MetaHandler.setFile(curJobPath, curJobPath.toFile(), info.getMetadata().rev);
 
-							DirWatcher2.setIgnoreNode(curJobPath.toFile().getAbsoluteFile().toPath(), true);
-						} catch(IOException | DropboxException ex) {
-							ex.printStackTrace();
-							logger.error("Error downloading file "+curJobPath.getNodeStoragePath()+": "+ex.getMessage());
+							DirWatcher2.setIgnoreNode(curJobPath.toFile().getAbsoluteFile().toPath(), false);
+						} catch (DropboxServerException e) {
+							e.printStackTrace();
+							VOSync.error(e.reason);
+							return true;
+						} catch (IOException | DropboxIOException e) {
+							e.printStackTrace();
+							VOSync.error(e.getMessage());
 							return false;
+						} catch (DropboxException e) {
+							e.printStackTrace();
+							VOSync.error(e.getMessage());
+							return true;
 						}
 						break;
 					case pushContent:
@@ -130,10 +142,18 @@ public class TaskController extends Thread {
 	//							logger.error(fileEntry.fileName()+" != "+path.toFile().getName());
 	//							path.toFile().renameTo(path.toFile());
 	//						}
-						} catch (IOException | DropboxException e) {
+						} catch (DropboxServerException e) {
+							e.printStackTrace();
+							VOSync.error(e.reason);
+							return true;
+						} catch (IOException | DropboxIOException e) {
 							e.printStackTrace();
 							VOSync.error(e.getMessage());
 							return false;
+						} catch (DropboxException e) {
+							e.printStackTrace();
+							VOSync.error(e.getMessage());
+							return true;
 						}
 	
 						break;
@@ -145,10 +165,18 @@ public class TaskController extends Thread {
 						MetaHandler.delete(curJobPath);
 						try {
 							VOSync.getInstance().getApi().delete(curJobPath.getNodeStoragePath());
-						} catch (DropboxException e) {
+						} catch (DropboxServerException e) {
+							e.printStackTrace();
+							VOSync.error(e.reason);
+							return true;
+						} catch (DropboxIOException e) {
 							e.printStackTrace();
 							VOSync.error(e.getMessage());
 							return false;
+						} catch (DropboxException e) {
+							e.printStackTrace();
+							VOSync.error(e.getMessage());
+							return true;
 						}
 						break;
 					}

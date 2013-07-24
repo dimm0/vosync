@@ -76,6 +76,12 @@ public class EventListener {
 							TaskController.addJob(job);
 						}
 					}
+				} else {
+					if(ent.isDeleted) {
+						//TODO removing local dir
+					} else {
+						nodeChangedPath.toFile().mkdirs();
+					}
 				}
 			} catch(DropboxException ex) {
 				VOSync.error(ex.getMessage());
