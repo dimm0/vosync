@@ -5,17 +5,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileSystem;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.WatchKey;
-import java.nio.file.attribute.FileAttribute;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
 import org.apache.log4j.Logger;
 
 import com.dropbox.client2.DropboxAPI.DropboxFileInfo;
@@ -23,8 +17,6 @@ import com.dropbox.client2.DropboxAPI.Entry;
 import com.dropbox.client2.exception.DropboxException;
 import com.dropbox.client2.exception.DropboxIOException;
 import com.dropbox.client2.exception.DropboxServerException;
-
-import edu.jhu.pha.vosync.TransferJob.JobStatus;
 
 public class TaskController extends Thread {
 
@@ -62,9 +54,7 @@ public class TaskController extends Thread {
 			while(listModel.isEmpty() && null == curJob)
 				synchronized(listModel) {
 					try {
-						logger.debug("     wait");
 						listModel.wait();
-						logger.debug("     wait finished");
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
@@ -158,8 +148,33 @@ public class TaskController extends Thread {
 	
 						break;
 					case pullDelete:
-						MetaHandler.delete(curJobPath);
-						curJobPath.toFile().delete();
+						try {
+							Entry entMeta = VOSync.getInstance().getApi().metadata(curJobPath.getNodeStoragePath(), 0, null, false, null);
+							if(!entMeta.isDir) {
+								MetaHandler.delete(curJobPath);
+								curJobPath.toFile().delete();
+							} else {
+								String[] filesList = curJobPath.toFile().list();
+								if(null == filesList || curJobPath.toFile().isFile()) // is a file
+									curJobPath.toFile().delete();
+								else if(filesList.length == 0 || listModel.isEmpty()) // folder is empty or no more jobs - removing folder
+									curJobPath.toFile().delete();
+								else
+									TaskController.addJob(curJob);
+							}
+						} catch (DropboxServerException e) {
+							e.printStackTrace();
+							VOSync.error(e.reason);
+							return true;
+						} catch (DropboxIOException e) {
+							e.printStackTrace();
+							VOSync.error(e.getMessage());
+							return false;
+						} catch (DropboxException e) {
+							e.printStackTrace();
+							VOSync.error(e.getMessage());
+							return true;
+						}
 						break;
 					case pushDelete:
 						MetaHandler.delete(curJobPath);

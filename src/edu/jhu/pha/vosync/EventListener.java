@@ -78,7 +78,8 @@ public class EventListener {
 					}
 				} else {
 					if(ent.isDeleted) {
-						//TODO removing local dir
+						TransferJob job = new TransferJob(Direction.pullDelete, nodeChangedPath);
+						TaskController.addJob(job);
 					} else {
 						nodeChangedPath.toFile().mkdirs();
 					}
