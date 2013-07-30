@@ -24,14 +24,13 @@ import edu.jhu.pha.vosync.TransferJob.Direction;
 public class NodesSynchronizer {
 	
 	private static final Logger logger = Logger.getLogger(NodesSynchronizer.class);
-	final static HashMap<NodePath, Entry> all_nodes = new HashMap<NodePath, Entry>();
 	static DropboxAPI<WebAuthSession> api = VOSync.getInstance().getApi();
 	
-	public static void initSync() {
+	public static void syncPath(NodePath path) {
+		final HashMap<NodePath, Entry> all_nodes = new HashMap<NodePath, Entry>();
 		try {
-			logger.debug("Synching storage.");
-			final String rootDir = "/";
-			Entry folderEntry = api.metadata(rootDir, 0, null, true, null);
+			logger.debug("Synching storage "+path.getNodeStoragePath());
+			Entry folderEntry = api.metadata(path.getNodeOuterPath(), 0, null, true, null);
 
 			visitEntry(folderEntry, new DropboxEntryVisitor() {
 				@Override
@@ -68,11 +67,9 @@ public class NodesSynchronizer {
 			logger.error("Error syching root dir: "+ex.getMessage());
 		}
 
-		for(NodePath path: all_nodes.keySet()) {
-			sync(path, all_nodes.get(path));
+		for(NodePath curPath: all_nodes.keySet()) {
+			sync(curPath, all_nodes.get(curPath));
 		}
-		
-		TaskController.getInstance().printQueue();
 	}
 	
 	private static void visitEntry(final Entry entry, DropboxEntryVisitor visitor) {
@@ -94,13 +91,6 @@ public class NodesSynchronizer {
 		}
 	}
 
-	
-	public static void printNodes() {
-		for(NodePath path: all_nodes.keySet()){
-			Entry ent = all_nodes.get(path);
-			logger.debug(path.getNodeStoragePath()+"      "+((null == ent)?"null":ent.path));
-		}
-	}
 	
 	public static void sync(NodePath path, Entry entry) {
 		

@@ -27,7 +27,7 @@ public class EventListener {
 
 	public void init() {
 		try {
-			eventSource	= httpClient.openEventDataSource("http://localhost/vobox/updates?user=https://sso.usvao.org/openid/id/dimm&path=/vosync", new MyEventHandler());
+			eventSource	= httpClient.openEventDataSource("http://localhost/vobox/updates?user=https://sso.usvao.org/openid/id/dimm&path=/vosync/*", new MyEventHandler());
 		} catch(IOException ex) {
 			ex.printStackTrace();
 		}

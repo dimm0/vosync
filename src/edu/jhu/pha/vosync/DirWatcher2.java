@@ -116,6 +116,7 @@ public class DirWatcher2 extends Thread {
 								TaskController.addJob(job);
 							} else if (Files.isDirectory(child, NOFOLLOW_LINKS)) { // directory contents changed
 								registerAll(child);
+								NodesSynchronizer.syncPath(filePath);
 							}
 						} else if(event.kind() == ENTRY_DELETE) {
 							logger.debug("Deleting "+filePath);

@@ -190,8 +190,7 @@ public class VOSync {
 
 				getInstance().runWatcher(syncPath);
 
-				NodesSynchronizer.initSync();
-				NodesSynchronizer.printNodes();
+				NodesSynchronizer.syncPath(new NodePath("/"));
 			}
 			EventListener list = new EventListener();
 			list.init();

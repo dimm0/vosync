@@ -76,6 +76,7 @@ public class TaskController extends Thread {
 					switch (curJob.getDirection()) {
 					case pullContent:
 						try {
+							curJobPath.toFile().getParentFile().mkdirs();
 							File tempFile = File.createTempFile("."+curJobPath.getNodeName(), null, curJobPath.toFile().getParentFile());
 							
 							FileOutputStream outp = new FileOutputStream(tempFile);
@@ -163,9 +164,14 @@ public class TaskController extends Thread {
 									TaskController.addJob(curJob);
 							}
 						} catch (DropboxServerException e) {
-							e.printStackTrace();
-							VOSync.error(e.reason);
-							return true;
+							if(e.reason.equals("Not Found")) { // Already removed from storage
+								MetaHandler.delete(curJobPath);
+								curJobPath.toFile().delete();
+							} else {
+								e.printStackTrace();
+								VOSync.error(e.reason);
+								return true;
+							}
 						} catch (DropboxIOException e) {
 							e.printStackTrace();
 							VOSync.error(e.getMessage());
