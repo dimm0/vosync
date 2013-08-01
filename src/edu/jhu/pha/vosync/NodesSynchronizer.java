@@ -20,9 +20,7 @@ import java.io.IOException;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.WatchKey;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.HashMap;
 
@@ -31,7 +29,6 @@ import org.apache.log4j.Logger;
 import com.dropbox.client2.DropboxAPI;
 import com.dropbox.client2.DropboxAPI.Entry;
 import com.dropbox.client2.exception.DropboxException;
-import com.dropbox.client2.exception.DropboxServerException;
 import com.dropbox.client2.session.WebAuthSession;
 
 import edu.jhu.pha.vosync.TransferJob.Direction;

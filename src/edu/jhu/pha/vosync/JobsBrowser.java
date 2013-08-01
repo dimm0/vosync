@@ -19,10 +19,10 @@ import java.awt.BorderLayout;
 import java.awt.EventQueue;
 
 import javax.swing.JFrame;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.ListModel;
 import javax.swing.border.EmptyBorder;
-import javax.swing.JList;
 
 public class JobsBrowser extends JFrame {
 

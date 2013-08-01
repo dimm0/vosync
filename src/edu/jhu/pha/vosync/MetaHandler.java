@@ -16,10 +16,7 @@
 package edu.jhu.pha.vosync;
 
 import java.io.File;
-import java.nio.file.FileSystems;
-import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;

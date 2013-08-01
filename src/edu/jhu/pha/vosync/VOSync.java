@@ -19,10 +19,11 @@ import java.awt.SystemTray;
 import java.awt.TrayIcon;
 import java.awt.TrayIcon.MessageType;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Properties;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 
@@ -31,6 +32,7 @@ import javax.swing.JDialog;
 import org.apache.log4j.Logger;
 
 import com.dropbox.client2.DropboxAPI;
+import com.dropbox.client2.DropboxAPI.Account;
 import com.dropbox.client2.exception.DropboxException;
 import com.dropbox.client2.exception.DropboxIOException;
 import com.dropbox.client2.session.AccessTokenPair;
@@ -69,7 +71,7 @@ public class VOSync {
 	 * Dropbox object for OAuth authentication
 	 */
 	private static WebAuthSession session;
-
+	
 	/**
 	 * Init the session. Can clear the access token for preferences to get the new token.
 	 * @param clearAccessToken Clear the current Access Token
@@ -97,7 +99,7 @@ public class VOSync {
 	
 	//private static String serviceUrl = "http://zinc27.pha.jhu.edu/vospace-2.0";
 //	private static String serviceUrl = "http://vospace.sdsc.edu:8080/vospace-2.0";
-	private static String serviceUrl = "http://localhost:8080/vospace-2.0";
+	private static String serviceUrl = null;
 	
 	/**
 	 * Print or display debug message
@@ -176,6 +178,14 @@ public class VOSync {
 		if (SystemTray.isSupported()) {
 			trayIcon = IconHandler.addIcon();
 		}
+		Properties prop = new Properties();
+		try(InputStream inp = getClass().getResourceAsStream("/vosync.properties")) {
+			prop.load(inp);
+			serviceUrl = (String)prop.get("serviceUrl");
+			logger.debug(serviceUrl);
+		} catch(IOException ex) {
+			ex.printStackTrace();
+		}
 		TaskController.getInstance();
 		initSession(false);
 	}
@@ -197,7 +207,7 @@ public class VOSync {
 	        } else {
 	    		api = new DropboxAPI<WebAuthSession>(session);
 
-				api.accountInfo();
+				Account account = api.accountInfo();
 
 	        	String syncDir = prefs.get("syncdir", null);
 	        	NodePath.startDir = (new File(syncDir)).toPath(); // set static NodePath parameter to use for paths conversion
@@ -206,17 +216,17 @@ public class VOSync {
 				getInstance().runWatcher(syncPath);
 
 				NodesSynchronizer.syncPath(new NodePath("/"));
+
+				new EventListener(getServiceUrl(), account.displayName);
+				
+				TaskController.getInstance().start();
+				
+				init = true;
 			}
-			EventListener list = new EventListener();
-			list.init();
-			
-			TaskController.getInstance().run();
-			
-			init = true;
 		} catch(DropboxIOException ex) {
-			this.error("Error connecting to the server.");
+			error("Error connecting to the server.");
 		} catch(DropboxException ex) {
-			this.error("Error: "+ex.getMessage());
+			error("Error: "+ex.getMessage());
 		}
 		
 	}

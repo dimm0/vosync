@@ -16,7 +16,6 @@
 package edu.jhu.pha.vosync;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
 import org.apache.commons.lang.StringUtils;
@@ -39,15 +38,15 @@ public class EventListener {
 
 	private HttpClient httpClient = new HttpClient();
 	private IEventDataSource eventSource;
-
-	public void init() {
+	
+	public EventListener(String serviceUrl, String account) {
 		try {
-			eventSource	= httpClient.openEventDataSource("http://localhost/vobox/updates?user=https://sso.usvao.org/openid/id/dimm&path=/vosync/*", new MyEventHandler());
+			eventSource	= httpClient.openEventDataSource("http://"+VOSync.getServiceUrl()+"/updates?user="+account+"&path=/vosync/*", new MyEventHandler());
 		} catch(IOException ex) {
 			ex.printStackTrace();
 		}
 	}
-
+	
 	public void destroy() {
 		try {
 			eventSource.close();

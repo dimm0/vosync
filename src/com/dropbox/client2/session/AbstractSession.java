@@ -71,6 +71,8 @@ import org.apache.http.protocol.HttpContext;
 
 import com.dropbox.client2.DropboxAPI;
 
+import edu.jhu.pha.vosync.VOSync;
+
 /**
  * Keeps track of a logged in user and contains configuration options for the
  * {@link DropboxAPI}. This is a base class to use for creating your own
@@ -78,7 +80,7 @@ import com.dropbox.client2.DropboxAPI;
  */
 public abstract class AbstractSession implements Session {
 
-    private static final String API_SERVER = "localhost";
+    private static final String API_SERVER = VOSync.getServiceUrl();
     private static final String CONTENT_SERVER = API_SERVER;
     private static final String WEB_SERVER = API_SERVER;
 

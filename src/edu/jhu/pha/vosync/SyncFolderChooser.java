@@ -16,6 +16,7 @@
 package edu.jhu.pha.vosync;
 
 import java.awt.BorderLayout;
+import java.awt.Desktop;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -30,11 +31,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
 import javax.swing.border.EmptyBorder;
-import java.awt.Desktop;
+
 import com.dropbox.client2.exception.DropboxException;
 import com.dropbox.client2.session.WebAuthSession.WebAuthInfo;
-import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.ColumnSpec;
+import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.FormSpecs;
 import com.jgoodies.forms.layout.RowSpec;
 
@@ -138,7 +139,7 @@ public class SyncFolderChooser extends JDialog {
 								final WebAuthInfo info = VOSync.getSession().getAuthInfo();
 
 								try {
-									Desktop.getDesktop().browse(URI.create(VOSync.getServiceUrl()+"/authorize?provider=vao&action=initiate&oauth_token="+info.requestTokenPair.key));
+									Desktop.getDesktop().browse(URI.create("http://"+VOSync.getServiceUrl()+"/vospace-2.0/authorize?provider=vao&action=initiate&oauth_token="+info.requestTokenPair.key));
 								} catch (IOException e1) {
 									e1.printStackTrace();
 								}
