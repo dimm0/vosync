@@ -24,12 +24,9 @@ import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.builder.EqualsBuilder;
 import org.apache.commons.lang.builder.HashCodeBuilder;
-import org.apache.log4j.Logger;
 
 public class NodePath {
 
-	private static final Logger logger = Logger.getLogger(NodePath.class);
-	
 	private String[] pathTokens;
 	
 	private final char SEPARATOR = '/';

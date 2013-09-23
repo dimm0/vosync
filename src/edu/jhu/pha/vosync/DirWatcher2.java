@@ -41,9 +41,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.log4j.Logger;
 
-import com.dropbox.client2.DropboxAPI;
-import com.dropbox.client2.session.WebAuthSession;
-
 import edu.jhu.pha.vosync.TransferJob.Direction;
 
 public class DirWatcher2 extends Thread {
@@ -54,8 +51,6 @@ public class DirWatcher2 extends Thread {
 	static <T> WatchEvent<T> cast(WatchEvent<?> event) {
 		return (WatchEvent<T>) event;
 	}
-	
-	private DropboxAPI<WebAuthSession> api;
 	
 	private final WatchService watcher;
 	private final Map<WatchKey, Path> keys;
@@ -71,11 +66,10 @@ public class DirWatcher2 extends Thread {
 	 * Creates a WatchService and registers the given directory
 	 * @throws IOException 
 	 */
-	DirWatcher2(Path dir, DropboxAPI<WebAuthSession> api) throws IOException {
+	DirWatcher2(Path dir) throws IOException {
 		this.watcher = FileSystems.getDefault().newWatchService();
 		this.keys = new HashMap<WatchKey, Path>();
 		this.startDir = dir;
-		this.api = api;
 	}
 
 	@Override
@@ -121,7 +115,7 @@ public class DirWatcher2 extends Thread {
 				Path relativeDir = startDir.relativize(child);
 				NodePath filePath = new NodePath(fixPath(relativeDir.toString()));
 
-				if(this.ignoreNodes.contains(filePath.toFile().toPath())){
+				if(ignoreNodes.contains(filePath.toFile().toPath())){
 					logger.debug("Ignoring path "+filePath.toFile().toPath());
 					continue;
 				} else {
@@ -133,7 +127,9 @@ public class DirWatcher2 extends Thread {
 				logger.debug(event.kind().name()+":"+child+" "+name+" "+key);
 				
 				try {
-					if(Files.exists(child, new LinkOption[]{}) && Files.isHidden(child)){
+					if(!Files.exists(child, new LinkOption[]{}))
+						continue;
+					if(Files.isHidden(child)){
 						logger.error("Skipping hidden file "+child.getFileName()); // skip OS generated catalog files
 					} else {
 						if(event.kind() == ENTRY_CREATE) {

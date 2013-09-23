@@ -189,11 +189,11 @@ public class SyncFolderChooser extends JDialog {
 				okButton.addMouseListener(new MouseAdapter() {
 					@Override
 					public void mouseClicked(MouseEvent e) {
+					    setVisible(false);
 					    VOSync.setSyncDir(Paths.get(syncDirField.getText()).toString());
 					    VOSync.setCredentials(oauthTokenField.getText(), oauthSecretField.getText());
 
 					    VOSync.getInstance().init();
-					    setVisible(false);
 					}
 				});
 				okButton.setActionCommand("OK");

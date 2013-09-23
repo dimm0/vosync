@@ -41,7 +41,21 @@ public class EventListener {
 	
 	public EventListener(String serviceUrl, String account) {
 		try {
-			eventSource	= httpClient.openEventDataSource("http://"+VOSync.getServiceUrl()+"/updates?user="+account+"&path=/vosync/*", new MyEventHandler());
+			eventSource	= httpClient.openEventDataSource("http://"+VOSync.getServiceUrl()+"/updates?user="+account+"&path=/vosync*", new MyEventHandler());
+			
+			httpClient.addListener(new org.xsocket.ILifeCycle() {
+
+				@Override
+				public void onDestroy() throws IOException {
+					logger.debug("        DESTROY!!!!!!!!!!!!");
+					
+				}
+
+				@Override
+				public void onInit() {
+					logger.debug("        INIT!!!!!!!!!!!!");
+					
+				}});
 		} catch(IOException ex) {
 			ex.printStackTrace();
 		}
@@ -58,10 +72,18 @@ public class EventListener {
 
 	private class MyEventHandler implements IEventHandler {
 
+		@Override
 		public void onConnect(IEventDataSource webEventDataSource) throws IOException {
-			logger.debug("Connected eventlistener");
+			VOSync.debug("Connected eventlistener, running nodessync");
+			NodesSynchronizer.syncPath(new NodePath("/"));
 		}
 
+		@Override
+		public void onDisconnect(IEventDataSource webEventDataSource) throws IOException {
+			VOSync.debug("Disconnected eventlistener");
+		}
+
+		@Override
 		public void onMessage(IEventDataSource webEventDataSource) throws IOException {
 			Event event = webEventDataSource.readMessage();
 			VOSync.debug("Event "+event.getData());
@@ -104,9 +126,57 @@ public class EventListener {
 			}
 		}
 
+	}
+
+	public static class My2EventHandler implements IEventHandler {
+
+		@Override
+		public void onConnect(IEventDataSource webEventDataSource) throws IOException {
+			VOSync.debug("Connected eventlistener, running nodessync");
+		}
+
+		@Override
 		public void onDisconnect(IEventDataSource webEventDataSource) throws IOException {
-			logger.debug("Disconnected eventlistener");
-		}            
+			VOSync.debug("Disconnected eventlistener");
+		}
+
+		@Override
+		public void onMessage(IEventDataSource webEventDataSource) throws IOException {
+			Event event = webEventDataSource.readMessage();
+			System.out.println("Event "+event.getData());
+		}
+	}
+
+	public static final void main(String[] s) {
+		try {
+			HttpClient httpClient = new HttpClient();
+			IEventDataSource eventSource = httpClient.openEventDataSource("http://zinc26.pha.jhu.edu/updates?user=https://sso.usvao.org/openid/id/dimm&path=/test*", new My2EventHandler());
+			
+			httpClient.addListener(new org.xsocket.ILifeCycle() {
+
+				@Override
+				public void onDestroy() throws IOException {
+					System.out.println("        DESTROY!!!!!!!!!!!!");
+					
+				}
+
+				@Override
+				public void onInit() {
+					System.out.println("        INIT!!!!!!!!!!!!");
+					
+				}});
+			synchronized(httpClient) {
+				try {
+					httpClient.wait();
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+			}
+
+		} catch(IOException ex) {
+			ex.printStackTrace();
+		}
+
 	}
 
 }

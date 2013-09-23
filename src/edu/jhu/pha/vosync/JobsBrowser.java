@@ -26,8 +26,9 @@ import javax.swing.border.EmptyBorder;
 
 public class JobsBrowser extends JFrame {
 
+	private static final long serialVersionUID = -7135845561621652454L;
 	private JPanel contentPane;
-	private JList list;
+	private JList<TransferJob> list;
 
 	/**
 	 * Launch the application.
@@ -48,7 +49,7 @@ public class JobsBrowser extends JFrame {
 	/**
 	 * Create the frame.
 	 */
-	public JobsBrowser(ListModel model) {
+	public JobsBrowser(ListModel<TransferJob> model) {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		setBounds(100, 100, 450, 300);
 		contentPane = new JPanel();
@@ -56,11 +57,11 @@ public class JobsBrowser extends JFrame {
 		contentPane.setLayout(new BorderLayout(0, 0));
 		setContentPane(contentPane);
 		
-		list = new JList(model);
+		list = new JList<TransferJob>(model);
 		contentPane.add(list, BorderLayout.CENTER);
 	}
 
-	public JList getList() {
+	public JList<TransferJob> getList() {
 		return list;
 	}
 }

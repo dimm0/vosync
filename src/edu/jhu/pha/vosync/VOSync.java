@@ -92,14 +92,7 @@ public class VOSync {
 	 */
 	private DirWatcher2 watcherThread;
 	
-	/**
-	 * Application is initialized
-	 */
-	private boolean init = false;
-	
-	//private static String serviceUrl = "http://zinc27.pha.jhu.edu/vospace-2.0";
-//	private static String serviceUrl = "http://vospace.sdsc.edu:8080/vospace-2.0";
-	private static String serviceUrl = null;
+	private static String serviceUrl;
 	
 	/**
 	 * Print or display debug message
@@ -220,8 +213,6 @@ public class VOSync {
 				new EventListener(getServiceUrl(), account.displayName);
 				
 				TaskController.getInstance().start();
-				
-				init = true;
 			}
 		} catch(DropboxIOException ex) {
 			error("Error connecting to the server.");
@@ -241,7 +232,7 @@ public class VOSync {
 				watcherThread.join(10000);
 			}
 			logger.debug("Running watcher: after instance check");
-			watcherThread = new DirWatcher2(syncPath, api);
+			watcherThread = new DirWatcher2(syncPath);
 			watcherThread.setDaemon(true);
 			watcherThread.start();
 		} catch (Exception e) {
